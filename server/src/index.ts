@@ -57,18 +57,22 @@ app.get('/api/daily-focus', async (c) => {
 
 app.post('/api/task/:id/activity', async (c) => {
     const taskId = c.req.param('id');
-    const { type } = await c.req.json(); // 'touched' or 'done'
+    const { type } = await c.req.json(); // 'touched', 'done', or 'undo'
 
-    if (!['touched', 'done'].includes(type)) return c.json({ error: 'Invalid type' }, 400);
+    if (!['touched', 'done', 'undo'].includes(type)) return c.json({ error: 'Invalid type' }, 400);
 
-    await db.insert(taskActivity).values({
-        taskId,
-        date: new Date().toISOString().split('T')[0],
-        activityType: type,
-    });
+    if (type !== 'undo') {
+        await db.insert(taskActivity).values({
+            taskId,
+            date: new Date().toISOString().split('T')[0],
+            activityType: type as 'touched' | 'done',
+        });
+    }
 
     if (type === 'done') {
         await db.update(tasks).set({ status: 'done' }).where(eq(tasks.id, taskId));
+    } else if (type === 'undo') {
+        await db.update(tasks).set({ status: 'open' }).where(eq(tasks.id, taskId));
     }
 
     return c.json({ success: true });

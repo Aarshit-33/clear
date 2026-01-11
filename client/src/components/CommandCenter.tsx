@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Check, AlertTriangle } from 'lucide-react';
+import { Check, AlertTriangle, RotateCcw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 type Task = {
@@ -31,7 +31,7 @@ export default function CommandCenter() {
     });
 
     const activityMutation = useMutation({
-        mutationFn: async ({ taskId, type }: { taskId: string; type: 'touched' | 'done' }) => {
+        mutationFn: async ({ taskId, type }: { taskId: string; type: 'touched' | 'done' | 'undo' }) => {
             const res = await fetch(`http://localhost:3000/api/task/${taskId}/activity`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -87,7 +87,7 @@ export default function CommandCenter() {
                                 </h3>
                             </div>
 
-                            {task.status !== 'done' && (
+                            {task.status !== 'done' ? (
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
                                         onClick={() => activityMutation.mutate({ taskId: task.id, type: 'touched' })}
@@ -102,6 +102,16 @@ export default function CommandCenter() {
                                         title="Done"
                                     >
                                         <Check className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2 opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => activityMutation.mutate({ taskId: task.id, type: 'undo' })}
+                                        className="p-2 hover:bg-secondary rounded-full text-muted-foreground hover:text-foreground"
+                                        title="Undo"
+                                    >
+                                        <RotateCcw className="w-5 h-5" />
                                     </button>
                                 </div>
                             )}
