@@ -1,4 +1,4 @@
-# Daily Control Room
+# Clear
 
 A personal cognitive offloading & decision-making system.
 

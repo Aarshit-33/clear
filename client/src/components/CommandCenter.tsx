@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Check, X, AlertTriangle } from 'lucide-react';
+import { Check, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 type Task = {
@@ -45,7 +45,7 @@ export default function CommandCenter() {
         },
     });
 
-    if (isLoading) return <div className="text-muted-foreground animate-pulse">Loading Control Room...</div>;
+    if (isLoading) return <div className="text-muted-foreground animate-pulse">Loading Clear...</div>;
 
     if (!focus || !focus.date) {
         return (

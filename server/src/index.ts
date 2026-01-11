@@ -11,7 +11,7 @@ const app = new Hono();
 app.use('/*', cors());
 
 app.get('/', (c) => {
-    return c.text('Daily Control Room API');
+    return c.text('Clear API');
 });
 
 app.post('/api/dump', async (c) => {
