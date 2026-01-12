@@ -9,7 +9,7 @@ export default function DumpScreen() {
 
     const mutation = useMutation({
         mutationFn: async (content: string) => {
-            const res = await fetch('http://localhost:3000/api/dump', {
+            const res = await fetch('/api/dump', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content }),

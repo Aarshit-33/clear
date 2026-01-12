@@ -19,6 +19,7 @@ export const tasks = sqliteTable('tasks', {
     pressureScore: real('pressure_score').default(0),
     leverageScore: real('leverage_score').default(0),
     neglectScore: real('neglect_score').default(0),
+    scheduledDate: text('scheduled_date'), // YYYY-MM-DD
     status: text('status', { enum: ['open', 'archived', 'done'] }).default('open'),
 });
 

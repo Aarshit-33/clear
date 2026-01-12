@@ -38,9 +38,11 @@ export async function processDumps() {
 }
 
 async function analyzeAndCreateTasks(content: string) {
+    const today = new Date().toISOString().split('T')[0];
     const prompt = `
     You are a cognitive offloading assistant. Your job is to extract actionable tasks from the following raw text.
     
+    Current Date: ${today}
     Raw Text: "${content}"
     
     Rules:
@@ -50,6 +52,7 @@ async function analyzeAndCreateTasks(content: string) {
        - canonical_text: A clear, action-oriented title (e.g., "Buy milk").
        - pressure_score: 0.0 to 1.0 (based on urgency/anxiety in text).
        - leverage_score: 0.0 to 1.0 (based on potential impact).
+       - scheduled_date: YYYY-MM-DD (IF a specific date/deadline is mentioned, otherwise null). Resolve "tomorrow", "next Friday" based on Current Date.
     
     Return ONLY a JSON array of objects. No markdown formatting.
     Example: [{"canonical_text": "Buy milk", "pressure_score": 0.1, "leverage_score": 0.1}]
@@ -71,6 +74,7 @@ async function analyzeAndCreateTasks(content: string) {
                     pressureScore: task.pressure_score || 0,
                     leverageScore: task.leverage_score || 0,
                     neglectScore: 0, // Initial neglect is 0
+                    scheduledDate: task.scheduled_date || null,
                     status: 'open',
                 });
                 console.log(`Created task: ${task.canonical_text}`);

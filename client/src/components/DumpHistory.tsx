@@ -20,7 +20,7 @@ export default function DumpHistory({ isOpen, onClose }: DumpHistoryProps) {
     const { data: dumps, isLoading } = useQuery<DumpEntry[]>({
         queryKey: ['dumps'],
         queryFn: async () => {
-            const res = await fetch('http://localhost:3000/api/dumps');
+            const res = await fetch('/api/dumps');
             if (!res.ok) throw new Error('Failed to fetch dumps');
             return res.json();
         },
