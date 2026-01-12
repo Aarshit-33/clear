@@ -1,5 +1,5 @@
 import { db } from './db';
-import { tasks, dailyFocus } from './db/schema';
+import { tasks, dailyFocus, settings } from './db/schema';
 import { eq, desc, sql, and, not, or, isNull, lte } from 'drizzle-orm';
 
 import { getLocalDate } from './utils';
@@ -8,6 +8,15 @@ export async function generateDailyFocus(force: boolean = false) {
     console.log('Generating Daily Focus...');
 
     const today = getLocalDate();
+
+    // 0. Fetch Settings
+    const allSettings = await db.select().from(settings);
+    const settingsMap: Record<string, string> = {};
+    for (const s of allSettings) {
+        settingsMap[s.key] = s.value;
+    }
+    const focusCount = parseInt(settingsMap['daily_focus_count'] || '3', 10);
+    const directive = settingsMap['daily_directive'] || "Focus on what matters. Ignore the noise.";
 
     // Check if already exists
     const existing = await db.select().from(dailyFocus).where(eq(dailyFocus.date, today));
@@ -54,22 +63,24 @@ export async function generateDailyFocus(force: boolean = false) {
     // Sort by Priority
     scoredTasks.sort((a, b) => b.priority - a.priority);
 
-    // Select Top 3
-    const top3 = scoredTasks.slice(0, 3);
+    // Select Top N (based on settings)
+    const topN = scoredTasks.slice(0, focusCount);
 
-    // Select Avoided Task (Highest Neglect that is NOT in Top 3)
-    const remaining = scoredTasks.slice(3);
+    // Select Avoided Task (Highest Neglect that is NOT in Top N)
+    const remaining = scoredTasks.slice(focusCount);
     remaining.sort((a, b) => (b.neglectScore || 0) - (a.neglectScore || 0));
     const avoided = remaining.length > 0 ? remaining[0] : null;
 
     // Insert into Daily Focus
     await db.insert(dailyFocus).values({
         date: today,
-        topTask1: top3[0]?.id,
-        topTask2: top3[1]?.id,
-        topTask3: top3[2]?.id,
+        topTask1: topN[0]?.id,
+        topTask2: topN[1]?.id,
+        topTask3: topN[2]?.id,
+        topTask4: topN[3]?.id,
+        topTask5: topN[4]?.id,
         avoidedTask: avoided?.id,
-        dailyDirective: "Focus on what matters. Ignore the noise.",
+        dailyDirective: directive,
         accepted: false,
     });
 

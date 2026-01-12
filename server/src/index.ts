@@ -2,8 +2,8 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
-import { dumpEntries, dailyFocus, tasks, taskActivity } from './db/schema';
-import { startScheduler } from './scheduler';
+import { dumpEntries, dailyFocus, tasks, taskActivity, settings } from './db/schema';
+import { processDumps } from './processor';
 import { eq, desc, and, ne } from 'drizzle-orm';
 import { getLocalDate } from './utils';
 import { generateDailyFocus } from './decider';
@@ -25,6 +25,9 @@ app.post('/api/dump', async (c) => {
         content,
     });
 
+    // Trigger processing immediately
+    processDumps().catch(console.error);
+
     return c.json({ success: true });
 });
 
@@ -33,6 +36,28 @@ app.get('/api/dumps', async (c) => {
         .from(dumpEntries)
         .orderBy(desc(dumpEntries.createdAt));
     return c.json(dumps);
+});
+
+app.get('/api/settings', async (c) => {
+    const allSettings = await db.select().from(settings);
+    // Convert array to object
+    const settingsMap: Record<string, string> = {};
+    for (const s of allSettings) {
+        settingsMap[s.key] = s.value;
+    }
+    return c.json(settingsMap);
+});
+
+app.post('/api/settings', async (c) => {
+    const { key, value } = await c.req.json();
+    if (!key) return c.json({ error: 'Key is required' }, 400);
+
+    // Upsert
+    await db.insert(settings)
+        .values({ key, value: String(value) })
+        .onConflictDoUpdate({ target: settings.key, set: { value: String(value) } });
+
+    return c.json({ success: true });
 });
 
 app.get('/api/daily-focus', async (c) => {
@@ -47,6 +72,8 @@ app.get('/api/daily-focus', async (c) => {
     const t1 = focus.topTask1 ? await db.select().from(tasks).where(and(eq(tasks.id, focus.topTask1), ne(tasks.status, 'archived'))).get() : null;
     const t2 = focus.topTask2 ? await db.select().from(tasks).where(and(eq(tasks.id, focus.topTask2), ne(tasks.status, 'archived'))).get() : null;
     const t3 = focus.topTask3 ? await db.select().from(tasks).where(and(eq(tasks.id, focus.topTask3), ne(tasks.status, 'archived'))).get() : null;
+    const t4 = focus.topTask4 ? await db.select().from(tasks).where(and(eq(tasks.id, focus.topTask4), ne(tasks.status, 'archived'))).get() : null;
+    const t5 = focus.topTask5 ? await db.select().from(tasks).where(and(eq(tasks.id, focus.topTask5), ne(tasks.status, 'archived'))).get() : null;
     const avoided = focus.avoidedTask ? await db.select().from(tasks).where(and(eq(tasks.id, focus.avoidedTask), ne(tasks.status, 'archived'))).get() : null;
 
     return c.json({
@@ -54,11 +81,16 @@ app.get('/api/daily-focus', async (c) => {
         topTask1: t1,
         topTask2: t2,
         topTask3: t3,
+        topTask4: t4,
+        topTask5: t5,
         avoidedTask: avoided,
     });
 });
 
 app.post('/api/daily-focus/refocus', async (c) => {
+    // 0. Ensure all dumps are processed
+    await processDumps();
+
     // 1. Re-score tasks to ensure fresh data
     await scoreTasks();
 
@@ -118,7 +150,7 @@ app.delete('/api/task/:id', async (c) => {
 const port = 3000;
 console.log(`Server is running on port ${port}`);
 
-startScheduler();
+// startScheduler();
 
 serve({
     fetch: app.fetch,

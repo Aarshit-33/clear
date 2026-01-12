@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { Clock, Settings as SettingsIcon } from "lucide-react";
 import { ModeToggle } from "./mode-toggle";
 import { cn } from "../lib/utils";
 
@@ -6,9 +6,10 @@ interface NavbarProps {
     view: 'dump' | 'command';
     setView: (view: 'dump' | 'command') => void;
     onHistoryClick: () => void;
+    onSettingsClick: () => void;
 }
 
-export default function Navbar({ view, setView, onHistoryClick }: NavbarProps) {
+export default function Navbar({ view, setView, onHistoryClick, onSettingsClick }: NavbarProps) {
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border/40 bg-background/80 backdrop-blur-md px-4 flex items-center justify-between">
             {/* Left: Controls */}
@@ -20,6 +21,13 @@ export default function Navbar({ view, setView, onHistoryClick }: NavbarProps) {
                     title="View History"
                 >
                     <Clock className="w-[1.2rem] h-[1.2rem]" />
+                </button>
+                <button
+                    onClick={onSettingsClick}
+                    className="p-2 rounded-full hover:bg-secondary text-foreground transition-colors outline-none"
+                    title="Settings"
+                >
+                    <SettingsIcon className="w-[1.2rem] h-[1.2rem]" />
                 </button>
             </div>
 

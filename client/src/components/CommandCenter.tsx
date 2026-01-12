@@ -17,6 +17,8 @@ type DailyFocus = {
     topTask1: Task | null;
     topTask2: Task | null;
     topTask3: Task | null;
+    topTask4: Task | null;
+    topTask5: Task | null;
     avoidedTask: Task | null;
 };
 
@@ -108,7 +110,7 @@ export default function CommandCenter() {
         );
     }
 
-    const tasks = [focus.topTask1, focus.topTask2, focus.topTask3].filter(Boolean) as Task[];
+    const tasks = [focus.topTask1, focus.topTask2, focus.topTask3, focus.topTask4, focus.topTask5].filter(Boolean) as Task[];
 
     return (
         <div className="w-full max-w-3xl p-6 space-y-12">

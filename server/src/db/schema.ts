@@ -29,6 +29,8 @@ export const dailyFocus = sqliteTable('daily_focus', {
     topTask1: text('top_task_1').references(() => tasks.id),
     topTask2: text('top_task_2').references(() => tasks.id),
     topTask3: text('top_task_3').references(() => tasks.id),
+    topTask4: text('top_task_4').references(() => tasks.id),
+    topTask5: text('top_task_5').references(() => tasks.id),
     avoidedTask: text('avoided_task').references(() => tasks.id),
     dailyDirective: text('daily_directive'),
     accepted: integer('accepted', { mode: 'boolean' }).default(false),
@@ -42,4 +44,10 @@ export const taskActivity = sqliteTable('task_activity', {
     date: text('date').notNull(), // YYYY-MM-DD
     activityType: text('activity_type', { enum: ['touched', 'done'] }).notNull(),
     timestamp: integer('timestamp', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// TABLE 5: settings
+export const settings = sqliteTable('settings', {
+    key: text('key').primaryKey(),
+    value: text('value').notNull(),
 });

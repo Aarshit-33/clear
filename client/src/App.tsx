@@ -46,8 +46,11 @@ import { ThemeProvider } from './components/theme-provider';
 import DumpHistory from './components/DumpHistory';
 import Navbar from './components/Navbar';
 
+import Settings from './components/Settings';
+
 function App() {
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState<'dump' | 'command'>('command');
 
   return (
@@ -57,9 +60,11 @@ function App() {
           view={view}
           setView={setView}
           onHistoryClick={() => setShowHistory(true)}
+          onSettingsClick={() => setShowSettings(true)}
         />
 
         <DumpHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
+        {showSettings && <Settings onClose={() => setShowSettings(false)} />}
         <Main view={view} />
       </ThemeProvider>
     </QueryClientProvider>
