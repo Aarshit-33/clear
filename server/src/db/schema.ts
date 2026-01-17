@@ -1,9 +1,20 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+
+// TABLE 0: users
+export const users = sqliteTable('users', {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    email: text('email').unique().notNull(),
+    passwordHash: text('password_hash').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+    resetToken: text('reset_token'),
+    resetTokenExpiry: integer('reset_token_expiry', { mode: 'timestamp' }),
+});
 
 // TABLE 1: dump_entries
 export const dumpEntries = sqliteTable('dump_entries', {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id').references(() => users.id).notNull(),
     content: text('content').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
     processed: integer('processed', { mode: 'boolean' }).default(false),
@@ -12,6 +23,7 @@ export const dumpEntries = sqliteTable('dump_entries', {
 // TABLE 2: tasks
 export const tasks = sqliteTable('tasks', {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id').references(() => users.id).notNull(),
     canonicalText: text('canonical_text').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
     lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
@@ -25,7 +37,8 @@ export const tasks = sqliteTable('tasks', {
 
 // TABLE 3: daily_focus
 export const dailyFocus = sqliteTable('daily_focus', {
-    date: text('date').primaryKey(), // YYYY-MM-DD
+    date: text('date'), // YYYY-MM-DD
+    userId: text('user_id').references(() => users.id).notNull(),
     topTask1: text('top_task_1').references(() => tasks.id),
     topTask2: text('top_task_2').references(() => tasks.id),
     topTask3: text('top_task_3').references(() => tasks.id),
@@ -35,11 +48,14 @@ export const dailyFocus = sqliteTable('daily_focus', {
     dailyDirective: text('daily_directive'),
     accepted: integer('accepted', { mode: 'boolean' }).default(false),
     overrideUsed: integer('override_used', { mode: 'boolean' }).default(false),
-});
+}, (t) => ({
+    pk: primaryKey({ columns: [t.date, t.userId] }),
+}));
 
 // TABLE 4: task_activity
 export const taskActivity = sqliteTable('task_activity', {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id').references(() => users.id).notNull(),
     taskId: text('task_id').references(() => tasks.id).notNull(),
     date: text('date').notNull(), // YYYY-MM-DD
     activityType: text('activity_type', { enum: ['touched', 'done'] }).notNull(),
@@ -48,6 +64,9 @@ export const taskActivity = sqliteTable('task_activity', {
 
 // TABLE 5: settings
 export const settings = sqliteTable('settings', {
-    key: text('key').primaryKey(),
+    key: text('key'),
+    userId: text('user_id').references(() => users.id).notNull(),
     value: text('value').notNull(),
-});
+}, (t) => ({
+    pk: primaryKey({ columns: [t.key, t.userId] }),
+}));

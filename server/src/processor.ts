@@ -1,6 +1,6 @@
 import { db } from './db';
 import { dumpEntries, tasks } from './db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 
@@ -9,11 +9,31 @@ dotenv.config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-export async function processDumps() {
-    console.log('Processing dumps...');
+// ... imports ...
 
-    // 1. Fetch unprocessed dumps
-    const unprocessed = await db.select().from(dumpEntries).where(eq(dumpEntries.processed, false));
+// Simple in-memory lock to prevent race conditions
+const processingLocks: Record<string, boolean> = {};
+
+export async function processDumps(userId: string) {
+    if (processingLocks[userId]) {
+        console.log(`Already processing for user ${userId}, skipping.`);
+        return;
+    }
+
+    processingLocks[userId] = true;
+    console.log(`Processing dumps for user ${userId}...`);
+
+    try {
+        await internalProcessDumps(userId);
+    } finally {
+        delete processingLocks[userId];
+    }
+}
+
+async function internalProcessDumps(userId: string) {
+
+    // 1. Fetch unprocessed dumps for this user
+    const unprocessed = await db.select().from(dumpEntries).where(and(eq(dumpEntries.processed, false), eq(dumpEntries.userId, userId)));
 
     if (unprocessed.length === 0) {
         console.log('No unprocessed dumps found.');
@@ -23,7 +43,7 @@ export async function processDumps() {
     for (const dump of unprocessed) {
         try {
             console.log(`Processing dump: ${dump.id}`);
-            await analyzeAndCreateTasks(dump.content);
+            await analyzeAndCreateTasks(dump.content, userId);
 
             // Mark as processed
             await db.update(dumpEntries)
@@ -37,7 +57,7 @@ export async function processDumps() {
     console.log('Dump processing complete.');
 }
 
-async function analyzeAndCreateTasks(content: string) {
+async function analyzeAndCreateTasks(content: string, userId: string) {
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     You are a cognitive offloading assistant. Your job is to extract actionable tasks from the following raw text.
@@ -70,6 +90,7 @@ async function analyzeAndCreateTasks(content: string) {
         if (Array.isArray(extractedTasks)) {
             for (const task of extractedTasks) {
                 await db.insert(tasks).values({
+                    userId,
                     canonicalText: task.canonical_text,
                     pressureScore: task.pressure_score || 0,
                     leverageScore: task.leverage_score || 0,
@@ -84,6 +105,7 @@ async function analyzeAndCreateTasks(content: string) {
         console.error("AI Processing Error:", error);
         // Fallback: Create a single task from the content if AI fails
         await db.insert(tasks).values({
+            userId,
             canonicalText: content.substring(0, 200), // Truncate if too long
             pressureScore: 0.5,
             leverageScore: 0.5,

@@ -2,70 +2,82 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import DumpScreen from './components/DumpScreen';
 import CommandCenter from './components/CommandCenter';
-import { motion, AnimatePresence } from 'framer-motion';
+
 
 const queryClient = new QueryClient();
 
-interface MainProps {
-  view: 'dump' | 'command';
-}
 
-function Main({ view }: MainProps) {
-  return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 pt-20 relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        {view === 'dump' ? (
-          <motion.div
-            key="dump"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className="w-full flex justify-center"
-          >
-            <DumpScreen />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="command"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="w-full flex justify-center"
-          >
-            <CommandCenter />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 import { ThemeProvider } from './components/theme-provider';
 import DumpHistory from './components/DumpHistory';
+
 import Navbar from './components/Navbar';
 
 import Settings from './components/Settings';
 
-function App() {
-  const [showHistory, setShowHistory] = useState(false);
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { token, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
+
+  return <>{children}</>;
+}
+
+function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [view, setView] = useState<'dump' | 'command'>('command');
 
   return (
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans selection:bg-primary/20">
+      <Navbar
+        onSettingsClick={() => setShowSettings(true)}
+        onHistoryClick={() => setShowHistory(true)}
+        view={view}
+        setView={setView}
+      />
+
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
+        {view === 'command' ? <CommandCenter /> : <DumpScreen />}
+      </main>
+
+      <DumpHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+    </div>
+  );
+}
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="daily-control-room-theme">
-        <Navbar
-          view={view}
-          setView={setView}
-          onHistoryClick={() => setShowHistory(true)}
-          onSettingsClick={() => setShowSettings(true)}
-        />
-
-        <DumpHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
-        {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-        <Main view={view} />
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

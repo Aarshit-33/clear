@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import TaskCard from './TaskCard';
+import { apiFetch } from '../lib/api';
 
 type Task = {
     id: string;
@@ -29,7 +30,7 @@ export default function CommandCenter() {
     const { data: focus, isLoading } = useQuery<DailyFocus>({
         queryKey: ['daily-focus'],
         queryFn: async () => {
-            const res = await fetch('/api/daily-focus');
+            const res = await apiFetch('/api/daily-focus');
             if (!res.ok) throw new Error('Failed to fetch focus');
             return res.json();
         },
@@ -37,9 +38,8 @@ export default function CommandCenter() {
 
     const activityMutation = useMutation({
         mutationFn: async ({ taskId, type }: { taskId: string; type: 'touched' | 'done' | 'undo' }) => {
-            const res = await fetch(`/api/task/${taskId}/activity`, {
+            const res = await apiFetch(`/api/task/${taskId}/activity`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type }),
             });
             if (!res.ok) throw new Error('Failed to update activity');
@@ -52,7 +52,7 @@ export default function CommandCenter() {
 
     const refocusMutation = useMutation({
         mutationFn: async () => {
-            const res = await fetch('/api/daily-focus/refocus', {
+            const res = await apiFetch('/api/daily-focus/refocus', {
                 method: 'POST',
             });
             if (!res.ok) throw new Error('Failed to refocus');
@@ -65,9 +65,8 @@ export default function CommandCenter() {
 
     const editTaskMutation = useMutation({
         mutationFn: async ({ taskId, text }: { taskId: string; text: string }) => {
-            const res = await fetch(`/api/task/${taskId}`, {
+            const res = await apiFetch(`/api/task/${taskId}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ canonicalText: text }),
             });
             if (!res.ok) throw new Error('Failed to update task');
@@ -80,7 +79,7 @@ export default function CommandCenter() {
 
     const deleteTaskMutation = useMutation({
         mutationFn: async (taskId: string) => {
-            const res = await fetch(`/api/task/${taskId}`, {
+            const res = await apiFetch(`/api/task/${taskId}`, {
                 method: 'DELETE',
             });
             if (!res.ok) throw new Error('Failed to delete task');
@@ -172,6 +171,6 @@ export default function CommandCenter() {
                 description="Are you sure you want to archive this task? It will be removed from your daily focus."
                 confirmText="Archive"
             />
-        </div >
+        </div>
     );
 }

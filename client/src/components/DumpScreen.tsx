@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 export default function DumpScreen() {
     const [text, setText] = useState('');
@@ -9,9 +10,8 @@ export default function DumpScreen() {
 
     const mutation = useMutation({
         mutationFn: async (content: string) => {
-            const res = await fetch('/api/dump', {
+            const res = await apiFetch('/api/dump', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content }),
             });
             if (!res.ok) throw new Error('Failed to dump');

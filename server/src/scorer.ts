@@ -1,11 +1,11 @@
 import { db } from './db';
 import { tasks, taskActivity } from './db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 
-export async function scoreTasks() {
-    console.log('Scoring tasks...');
+export async function scoreTasks(userId: string) {
+    console.log(`Scoring tasks for user ${userId}...`);
 
-    const allTasks = await db.select().from(tasks).where(eq(tasks.status, 'open'));
+    const allTasks = await db.select().from(tasks).where(and(eq(tasks.status, 'open'), eq(tasks.userId, userId)));
 
     for (const task of allTasks) {
         // 1. Calculate Neglect Score

@@ -4,38 +4,39 @@ import { eq, desc, sql, and, not, or, isNull, lte } from 'drizzle-orm';
 
 import { getLocalDate } from './utils';
 
-export async function generateDailyFocus(force: boolean = false) {
-    console.log('Generating Daily Focus...');
+export async function generateDailyFocus(userId: string, force: boolean = false) {
+    console.log(`Generating Daily Focus for user ${userId}...`);
 
     const today = getLocalDate();
 
     // 0. Fetch Settings
-    const allSettings = await db.select().from(settings);
+    const allSettings = await db.select().from(settings).where(eq(settings.userId, userId));
     const settingsMap: Record<string, string> = {};
     for (const s of allSettings) {
-        settingsMap[s.key] = s.value;
+        settingsMap[s.key!] = s.value;
     }
     const focusCount = parseInt(settingsMap['daily_focus_count'] || '3', 10);
     const directive = settingsMap['daily_directive'] || "Focus on what matters. Ignore the noise.";
 
     // Check if already exists
-    const existing = await db.select().from(dailyFocus).where(eq(dailyFocus.date, today));
+    const existing = await db.select().from(dailyFocus).where(and(eq(dailyFocus.date, today), eq(dailyFocus.userId, userId)));
 
     if (existing.length > 0) {
         if (force) {
             console.log('Force regenerating focus for today. Deleting existing...');
-            await db.delete(dailyFocus).where(eq(dailyFocus.date, today));
+            await db.delete(dailyFocus).where(and(eq(dailyFocus.date, today), eq(dailyFocus.userId, userId)));
         } else {
             console.log('Daily focus for today already exists.');
             return;
         }
     }
 
-    // Fetch all open tasks that are NOT scheduled for the future
+    // Fetch all open tasks that are NOT scheduled for the future AND belong to user
     const openTasks = await db.select().from(tasks)
         .where(
             and(
                 eq(tasks.status, 'open'),
+                eq(tasks.userId, userId),
                 or(
                     isNull(tasks.scheduledDate),
                     lte(tasks.scheduledDate, today)
@@ -74,6 +75,7 @@ export async function generateDailyFocus(force: boolean = false) {
     // Insert into Daily Focus
     await db.insert(dailyFocus).values({
         date: today,
+        userId,
         topTask1: topN[0]?.id,
         topTask2: topN[1]?.id,
         topTask3: topN[2]?.id,
@@ -83,6 +85,12 @@ export async function generateDailyFocus(force: boolean = false) {
         dailyDirective: directive,
         accepted: false,
     });
+
+    // Update lastSeenAt for these tasks so they are not considered neglected tomorrow
+    const tasksToUpdate = [...topN.map(t => t.id), avoided?.id].filter(Boolean) as string[];
+    for (const tid of tasksToUpdate) {
+        await db.update(tasks).set({ lastSeenAt: new Date() }).where(eq(tasks.id, tid));
+    }
 
     console.log('Daily Focus generated.');
 }

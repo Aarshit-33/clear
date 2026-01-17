@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { apiFetch } from '../lib/api';
 
 type DumpEntry = {
     id: string;
@@ -20,7 +21,7 @@ export default function DumpHistory({ isOpen, onClose }: DumpHistoryProps) {
     const { data: dumps, isLoading } = useQuery<DumpEntry[]>({
         queryKey: ['dumps'],
         queryFn: async () => {
-            const res = await fetch('/api/dumps');
+            const res = await apiFetch('/api/dumps');
             if (!res.ok) throw new Error('Failed to fetch dumps');
             return res.json();
         },

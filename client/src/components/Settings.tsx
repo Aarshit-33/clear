@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { apiFetch } from '../lib/api';
+import { cn } from '../lib/utils';
 
 export default function Settings({ onClose }: { onClose: () => void }) {
     const [dailyFocusCount, setDailyFocusCount] = useState('3');
@@ -9,40 +11,56 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [regenerating, setRegenerating] = useState(false);
+    const [countError, setCountError] = useState('');
+
+    const handleCountChange = (value: string) => {
+        setDailyFocusCount(value);
+        if (value === '') {
+            setCountError('Value is required');
+            return;
+        }
+        const num = parseInt(value);
+        if (isNaN(num) || num < 1 || num > 5) {
+            setCountError('Must be between 1 and 5');
+        } else {
+            setCountError('');
+        }
+    };
 
     useEffect(() => {
-        const apiUrl = import.meta.env.VITE_API_URL || '';
-        fetch(`${apiUrl}/api/settings`)
-            .then(res => {
+        const fetchSettings = async () => {
+            try {
+                const res = await apiFetch('/api/settings');
                 if (!res.ok) throw new Error('Failed to fetch settings');
-                return res.json();
-            })
-            .then(data => {
+
+                const data = await res.json();
+
                 const count = data.daily_focus_count || '3';
                 const directive = data.daily_directive || 'Focus on what matters. Ignore the noise.';
                 setDailyFocusCount(count);
                 setOriginalFocusCount(count);
                 setDailyDirective(directive);
                 setOriginalDirective(directive);
-            })
-            .catch(err => {
-                console.error("Error loading settings:", err);
-            })
-            .finally(() => {
+            } catch (error) {
+                console.error("Error loading settings:", error);
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchSettings();
     }, []);
 
     const handleSave = async () => {
+        if (countError) return;
         setSaving(true);
-        const apiUrl = import.meta.env.VITE_API_URL || '';
         try {
-            await fetch(`${apiUrl}/api/settings`, {
+            await apiFetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key: 'daily_focus_count', value: dailyFocusCount }),
             });
-            await fetch(`${apiUrl}/api/settings`, {
+            await apiFetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key: 'daily_directive', value: dailyDirective }),
@@ -50,7 +68,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
             // Auto-regenerate if count or directive changed
             if (dailyFocusCount !== originalFocusCount || dailyDirective !== originalDirective) {
-                await fetch(`${apiUrl}/api/daily-focus/refocus`, { method: 'POST' });
+                setRegenerating(true);
+                await apiFetch('/api/daily-focus/refocus', { method: 'POST' });
                 window.location.reload(); // Reload to show new layout
             } else {
                 onClose();
@@ -64,17 +83,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     };
 
     const handleRegenerate = async () => {
-        if (!confirm('This will wipe the current "Daily Focus" and generate a new one based on the current open tasks. Are you sure?')) return;
+        if (!confirm('Are you sure? This will delete existing daily focus and re-score tasks.')) return;
 
         setRegenerating(true);
-        const apiUrl = import.meta.env.VITE_API_URL || '';
         try {
-            await fetch(`${apiUrl}/api/daily-focus/refocus`, { method: 'POST' });
+            await apiFetch('/api/daily-focus/refocus', { method: 'POST' });
             onClose();
             window.location.reload(); // Quick refresh to show new state
         } catch (error) {
             console.error('Failed to regenerate:', error);
-        } finally {
             setRegenerating(false);
         }
     };
@@ -103,9 +120,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                                     min="1"
                                     max="5"
                                     value={dailyFocusCount}
-                                    onChange={(e) => setDailyFocusCount(e.target.value)}
-                                    className="w-full bg-background border border-border rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none"
+                                    onChange={(e) => handleCountChange(e.target.value)}
+                                    className={cn(
+                                        "w-full bg-background border rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none",
+                                        countError ? "border-destructive focus:ring-destructive" : "border-border"
+                                    )}
                                 />
+                                {countError && <p className="text-xs text-destructive">{countError}</p>}
                                 <p className="text-xs text-muted-foreground">How many top tasks to select for the day.</p>
                             </div>
 
