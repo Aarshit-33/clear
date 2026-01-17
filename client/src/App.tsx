@@ -47,7 +47,7 @@ function Dashboard() {
       />
 
       <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
-        {view === 'command' ? <CommandCenter /> : <DumpScreen />}
+        {view === 'command' ? <CommandCenter onNavigateToDump={() => setView('dump')} /> : <DumpScreen />}
       </main>
 
       <DumpHistory isOpen={showHistory} onClose={() => setShowHistory(false)} />
@@ -56,28 +56,32 @@ function Dashboard() {
   );
 }
 
+import { ToastProvider } from './context/ToastContext';
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="daily-control-room-theme">
-        <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

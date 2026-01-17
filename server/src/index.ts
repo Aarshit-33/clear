@@ -387,6 +387,75 @@ app.delete('/api/task/:id', async (c) => {
     return c.json({ success: true });
 });
 
+app.post('/api/change-password', async (c) => {
+    const userId = c.get('jwtPayload').id;
+    const { currentPassword, newPassword } = await c.req.json();
+
+    if (!currentPassword || !newPassword) return c.json({ error: 'Current and new password required' }, 400);
+    if (newPassword.length < 6) return c.json({ error: 'New password too short' }, 400);
+
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
+    if (!user) return c.json({ error: 'User not found' }, 404);
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) return c.json({ error: 'Incorrect current password' }, 401);
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+
+    return c.json({ success: true });
+});
+
+app.delete('/api/account', async (c) => {
+    const userId = c.get('jwtPayload').id;
+    const { password } = await c.req.json();
+
+    if (!password) return c.json({ error: 'Password required to delete account' }, 400);
+
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
+    if (!user) return c.json({ error: 'User not found' }, 404);
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return c.json({ error: 'Incorrect password' }, 401);
+
+    // Manual Cascade Delete
+    await db.delete(dumpEntries).where(eq(dumpEntries.userId, userId));
+    await db.delete(tasks).where(eq(tasks.userId, userId));
+    await db.delete(dailyFocus).where(eq(dailyFocus.userId, userId));
+    await db.delete(taskActivity).where(eq(taskActivity.userId, userId));
+    await db.delete(settings).where(eq(settings.userId, userId));
+
+    // Finally delete user
+    await db.delete(users).where(eq(users.id, userId));
+
+    return c.json({ success: true });
+});
+
+app.get('/api/export', async (c) => {
+    const userId = c.get('jwtPayload').id;
+
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
+    if (!user) return c.json({ error: 'User not found' }, 404);
+
+    // Fetch all user data
+    const dumps = await db.select().from(dumpEntries).where(eq(dumpEntries.userId, userId));
+    const userTasks = await db.select().from(tasks).where(eq(tasks.userId, userId));
+    const focusHistory = await db.select().from(dailyFocus).where(eq(dailyFocus.userId, userId));
+    const activity = await db.select().from(taskActivity).where(eq(taskActivity.userId, userId));
+    const userSettings = await db.select().from(settings).where(eq(settings.userId, userId));
+
+    const exportData = {
+        user: { id: user.id, email: user.email, createdAt: user.createdAt },
+        settings: userSettings,
+        dumps,
+        tasks: userTasks,
+        dailyFocus: focusHistory,
+        activity
+    };
+
+    return c.json(exportData);
+});
+
 const port = 3000;
 console.log(`Server is running on port ${port}`);
 

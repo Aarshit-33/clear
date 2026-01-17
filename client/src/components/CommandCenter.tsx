@@ -5,6 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import ConfirmationModal from './ConfirmationModal';
 import TaskCard from './TaskCard';
 import { apiFetch } from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 type Task = {
     id: string;
@@ -23,8 +24,9 @@ type DailyFocus = {
     avoidedTask: Task | null;
 };
 
-export default function CommandCenter() {
+export default function CommandCenter({ onNavigateToDump }: { onNavigateToDump: () => void }) {
     const queryClient = useQueryClient();
+    const { toast } = useToast();
     const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
     const { data: focus, isLoading } = useQuery<DailyFocus>({
@@ -45,9 +47,17 @@ export default function CommandCenter() {
             if (!res.ok) throw new Error('Failed to update activity');
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+            if (variables.type === 'done') {
+                toast({ title: 'Task Complete', description: 'Good job.', variant: 'success' });
+            } else if (variables.type === 'undo') {
+                toast({ title: 'Undone', description: 'Task reopened.', variant: 'default' });
+            }
         },
+        onError: () => {
+            toast({ title: 'Error', description: 'Failed to update task', variant: 'destructive' });
+        }
     });
 
     const refocusMutation = useMutation({
@@ -60,7 +70,11 @@ export default function CommandCenter() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+            toast({ title: 'Recalibrated', description: 'Focus map updated.', variant: 'default' });
         },
+        onError: () => {
+            toast({ title: 'Error', description: 'Failed to recalibrate', variant: 'destructive' });
+        }
     });
 
     const editTaskMutation = useMutation({
@@ -74,7 +88,11 @@ export default function CommandCenter() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+            toast({ title: 'Updated', description: 'Task text saved.', variant: 'success' });
         },
+        onError: () => {
+            toast({ title: 'Error', description: 'Failed to save edits', variant: 'destructive' });
+        }
     });
 
     const deleteTaskMutation = useMutation({
@@ -88,23 +106,52 @@ export default function CommandCenter() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
             setDeletingTaskId(null);
+            toast({ title: 'Archived', description: 'Task removed from focus.', variant: 'default' });
         },
+        onError: () => {
+            toast({ title: 'Error', description: 'Failed to archive task', variant: 'destructive' });
+        }
     });
 
     if (isLoading) return <div className="text-muted-foreground animate-pulse">Loading Clear...</div>;
 
     if (!focus || !focus.date) {
         return (
-            <div className="text-center space-y-4">
-                <h2 className="text-2xl font-light">No Orders for Today</h2>
-                <p className="text-muted-foreground">The system is calibrating. Dump your mind to begin.</p>
-                <button
-                    onClick={() => refocusMutation.mutate()}
-                    disabled={refocusMutation.isPending}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                    {refocusMutation.isPending ? 'CALIBRATING...' : 'ESTABLISH FOCUS'}
-                </button>
+            <div className="flex flex-col items-center justify-center p-4 md:p-8 max-w-lg mx-auto text-center space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-[60vh]">
+                <div className="space-y-4">
+                    <h2 className="text-3xl md:text-4xl font-light tracking-tight text-primary">Welcome to Clear</h2>
+                    <p className="text-base md:text-lg text-muted-foreground leading-relaxed px-4">
+                        A workspace for your mind. <br />
+                        <span className="text-foreground font-medium">Dump</span> everything. <span className="text-foreground font-medium">Focus</span> on what matters.
+                    </p>
+                </div>
+
+                <div className="grid gap-4 w-full max-w-xs">
+                    <button
+                        onClick={onNavigateToDump}
+                        className="w-full py-4 bg-primary text-primary-foreground rounded-xl shadow-lg hover:shadow-primary/20 hover:-translate-y-1 transition-all font-medium text-lg flex items-center justify-center gap-2 active:scale-95"
+                    >
+                        <span>Start Brain Dump</span>
+                        <span className="opacity-70">→</span>
+                    </button>
+
+                    <div className="relative py-2">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border"></span></div>
+                        <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or</span></div>
+                    </div>
+
+                    <button
+                        onClick={() => refocusMutation.mutate()}
+                        disabled={refocusMutation.isPending}
+                        className="w-full py-3 bg-secondary/50 text-secondary-foreground rounded-lg hover:bg-secondary transition-colors text-sm font-medium active:scale-95"
+                    >
+                        {refocusMutation.isPending ? 'Generating Protocol...' : 'I have tasks, Establish Focus'}
+                    </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto pt-4 border-t border-border/50">
+                    Your daily focus is generated from your brain dump. New day, new focus.
+                </p>
             </div>
         );
     }
@@ -112,15 +159,15 @@ export default function CommandCenter() {
     const tasks = [focus.topTask1, focus.topTask2, focus.topTask3, focus.topTask4, focus.topTask5].filter(Boolean) as Task[];
 
     return (
-        <div className="w-full max-w-3xl p-6 space-y-12">
+        <div className="w-full max-w-3xl p-4 md:p-6 space-y-8 md:space-y-12">
             {/* Header */}
             <header className="text-center space-y-2">
-                <h1 className="text-sm uppercase tracking-[0.3em] text-muted-foreground">{focus.date}</h1>
-                <p className="text-2xl md:text-3xl font-serif italic text-primary">"{focus.dailyDirective}"</p>
+                <h1 className="text-xs md:text-sm uppercase tracking-[0.3em] text-muted-foreground">{focus.date}</h1>
+                <p className="text-xl md:text-3xl font-serif italic text-primary px-2">"{focus.dailyDirective}"</p>
             </header>
 
             {/* Top 3 Tasks */}
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
                 {tasks.map((task, index) => (
                     <TaskCard
                         key={task.id}
@@ -142,22 +189,22 @@ export default function CommandCenter() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
-                        className="border-t border-destructive/20 pt-8 mt-12"
+                        className="border-t border-destructive/20 pt-6 md:pt-8 mt-8 md:mt-12"
                     >
                         <div className="flex items-center gap-3 text-destructive/80 mb-4">
                             <AlertTriangle className="w-4 h-4" />
                             <span className="text-xs uppercase tracking-widest">Neglected Item</span>
                         </div>
-                        <p className="text-lg text-muted-foreground line-clamp-1">{focus.avoidedTask.canonicalText}</p>
+                        <p className="text-base md:text-lg text-muted-foreground line-clamp-2 md:line-clamp-1">{focus.avoidedTask.canonicalText}</p>
                     </motion.div>
                 )
             }
             {/* Recalibrate Button */}
-            <div className="text-center pt-8">
+            <div className="text-center pt-4 md:pt-8 pb-16 md:pb-0">
                 <button
                     onClick={() => refocusMutation.mutate()}
                     disabled={refocusMutation.isPending}
-                    className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    className="py-3 px-6 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 active:bg-secondary/50 rounded-lg"
                 >
                     {refocusMutation.isPending ? 'RECALIBRATING...' : 'RECALIBRATE PROTOCOL'}
                 </button>

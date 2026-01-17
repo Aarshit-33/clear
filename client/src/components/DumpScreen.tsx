@@ -3,10 +3,12 @@ import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { apiFetch } from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 export default function DumpScreen() {
     const [text, setText] = useState('');
     const [isFlushing, setIsFlushing] = useState(false);
+    const { toast } = useToast();
 
     const mutation = useMutation({
         mutationFn: async (content: string) => {
@@ -22,8 +24,12 @@ export default function DumpScreen() {
             setTimeout(() => {
                 setText('');
                 setIsFlushing(false);
+                toast({ title: 'Mind Cleared', description: 'Thought dumped successfully.', variant: 'success' });
             }, 500); // Wait for animation
         },
+        onError: () => {
+            toast({ title: 'Error', description: 'Failed to dump thought', variant: 'destructive' });
+        }
     });
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -49,7 +55,7 @@ export default function DumpScreen() {
                             onKeyDown={handleKeyDown}
                             placeholder="Dump your mind here..."
                             className={cn(
-                                "w-full h-64 bg-transparent text-2xl md:text-4xl font-light text-foreground placeholder:text-muted-foreground/20 resize-none focus:outline-none p-4",
+                                "w-full min-h-[50vh] md:min-h-[60vh] h-64 bg-transparent text-2xl md:text-4xl font-light text-foreground placeholder:text-muted-foreground/20 resize-none focus:outline-none p-4",
                                 "caret-primary"
                             )}
                             autoFocus
@@ -58,9 +64,9 @@ export default function DumpScreen() {
                             <button
                                 onClick={() => mutation.mutate(text)}
                                 disabled={!text.trim() || mutation.isPending}
-                                className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                className="py-3 px-6 text-sm md:text-base text-muted-foreground hover:text-foreground transition-all disabled:opacity-50 active:scale-95"
                             >
-                                {mutation.isPending ? 'Flushing...' : 'Cmd+Enter to Clear'}
+                                {mutation.isPending ? 'Flushing...' : 'Tap or Cmd+Enter to Clear'}
                             </button>
                         </div>
                     </motion.div>

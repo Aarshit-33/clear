@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -8,6 +9,8 @@ export default function Login() {
     const [error, setError] = useState('');
     const { login } = useAuth();
     const navigate = useNavigate();
+
+    const { toast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,9 +28,18 @@ export default function Login() {
             if (!res.ok) throw new Error(data.error || 'Login failed');
 
             login(data.token, data.user);
+            toast({
+                title: "Welcome back!",
+                description: "Logged in successfully",
+            });
             navigate('/');
         } catch (err: any) {
             setError(err.message);
+            toast({
+                title: "Login failed",
+                description: err.message,
+                variant: "destructive",
+            });
         }
     };
 
@@ -44,7 +56,7 @@ export default function Login() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-background border border-border rounded-lg p-2 focus:ring-2 focus:ring-primary outline-none"
+                            className="w-full bg-background border border-border rounded-lg p-3 text-base focus:ring-2 focus:ring-primary outline-none"
                             required
                         />
                     </div>
@@ -54,7 +66,7 @@ export default function Login() {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-background border border-border rounded-lg p-2 focus:ring-2 focus:ring-primary outline-none"
+                            className="w-full bg-background border border-border rounded-lg p-3 text-base focus:ring-2 focus:ring-primary outline-none"
                             required
                         />
                     </div>
@@ -63,7 +75,7 @@ export default function Login() {
                     </div>
                     <button
                         type="submit"
-                        className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
+                        className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity active:scale-95"
                     >
                         Login
                     </button>

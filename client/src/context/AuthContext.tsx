@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
 
 type User = {
     id: string;
@@ -32,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
     }, []);
 
+    const { toast } = useToast();
+
     const login = (newToken: string, newUser: User) => {
         setToken(newToken);
         setUser(newUser);
@@ -44,7 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        toast({
+            title: "Logged out",
+            description: "See you next time!",
+        });
     };
 
     return (
